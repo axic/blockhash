@@ -1,54 +1,75 @@
 {
-  // Reject incoming value transfers
-//  jumpi(unpaid, iszero(callvalue()))
-//  invalid
-//  unpaid:
-
   let cur_block_number := number()
 
   jumpi(system_sender, eq(caller(), 0xfffffffffffffffffffffffffffffffffffffffe))
 
   // Sender is a regular account - Getting a block
-  let block_number := calldataload(0)
-  // FIXME
-  return(0, 0)
+  {
+    let block_number := calldataload(0)
+
+    // Abort if block is in future
+    jumpi(quit, gt(block_number, cur_block_number))
+  
+    let distance := sub(block_number, cur_block_number)
+
+    // Enter Level 0 if distance <= 256
+    jumpi(skip_get_level_0, gt(block_number, 256))
+    mstore(0, sload(mod(block_number, 256)))
+    return(0, 0)
+    skip_get_level_0:
+
+    // Abort if number % 256 != 0
+    jumpi(quit, mod(block_number, 256))
+
+    // Enter Level 1 if distance <= 65792
+    jumpi(skip_get_level_1, gt(distance, 65792))
+    mstore(0, sload(add(256, mod(div(block_number, 256), 256))))
+    return(0, 0)
+    skip_get_level_1:
+
+    // Enter Level 2 if (number % 65536) == 0 and distance <= 16843008
+    jumpi(quit, mod(block_number, 65536))
+    jumpi(quit, gt(distance, 16843008))
+    mstore(0, sload(add(512, mod(div(block_number, 65536), 256))))
+  
+    quit:
+    return(0, 0)
+  }
 
   // Sender is the system account - Setting a block
   system_sender:
-
-  let prev_block_number := sub(cur_block_number, 1)
-
-  jumpi(set_level_2, eq(mod(prev_block_number, 65536), 0))
-  jumpi(set_level_1, eq(mod(prev_block_number, 256), 0))
-  jump(set_level_0)
-  
-  set_level_2:
   {
-    // Use storage fields 512..767 to store the hashes of 256
-    // blocks with block.number % 65536 == 0.
-    let index := mod(sub(div(prev_block_number, 65536), 1), 256)
-    // Move to be replaced record of index 0 from level 1 to level 2.
-    sstore(add(512, index), sload(256))
-    jump(set_level_1)
-  }
-  skip_level_2:
+    let prev_block_number := sub(cur_block_number, 1)
 
-  set_level_1:
-  {
-    // Use storage fields 256..511 to store the hashes of 256
-    // blocks with block.number % 256 == 0.
-    let index := mod(sub(div(prev_block_number, 256), 1), 256)
-    // Move to be replaced record of index 0 from level 0 to level 1.
-    sstore(add(256, index), sload(0))
-    jump(set_level_0)
-  }
+    // Enter Level 2 if prev_block_number % 65536 == 0.
+    jumpi(skip_set_level_2, mod(prev_block_number, 65536))
+    {
+      // Use storage fields 512..767 to store the hashes of 256
+      // blocks with block.number % 65536 == 0.
+      let index := mod(sub(div(prev_block_number, 65536), 1), 256)
+      // Move to be replaced record of index 0 from level 1 to level 2.
+      sstore(add(512, index), sload(256))
+    }
+    skip_set_level_2:
 
-  set_level_0:
-  {
-    // Use storage fields 0..255 to store the hashes of the last 256
-    // blocks.
-    let index := mod(prev_block_number, 256)
-    // Save the provided hash of the previous block.
-    sstore(index, calldataload(0))
+    // Enter Level 1 if prev_block_number % 256 == 0.
+    jumpi(skip_set_level_1, mod(prev_block_number, 256))
+    {
+      // Use storage fields 256..511 to store the hashes of 256
+      // blocks with block.number % 256 == 0.
+      let index := mod(sub(div(prev_block_number, 256), 1), 256)
+      // Move to be replaced record of index 0 from level 0 to level 1.
+      sstore(add(256, index), sload(0))
+    }
+    skip_set_level_1:
+
+    // Enter Level 0 in every case.
+    {
+      // Use storage fields 0..255 to store the hashes of the last 256
+      // blocks.
+      let index := mod(prev_block_number, 256)
+      // Save the provided hash of the previous block.
+      sstore(index, calldataload(0))
+    }
   }
 }
