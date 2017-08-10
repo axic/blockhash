@@ -1,0 +1,67 @@
+//
+// Blockhash contract implementation in Cali
+//
+//
+//
+
+{
+  // Reject incoming value transfers
+//  jumpi(unpaid, iszero(callvalue()))
+//  invalid
+//  unpaid:
+
+  let cur_block_number := number()
+
+  switch caller()
+    case 0xfffffffffffffffffffffffffffffffffffffffe {
+    // Sender is the system account - Setting a block
+    let prev_block_number := sub(cur_block_number, 1)
+    let block_hash := calldataload(0)
+
+    // Use storage fields 0..255 to store the last 256 hashes
+    sstore(mod(prev_block_number, 256), block_hash)
+
+    // Use storage fields 256..511 to store the hashes of the last 256
+    // blocks with block.number % 256 == 0
+    jumpi(not_last_256block, mod(prev_block_number, 256))
+    sstore(add(256, mod(div(prev_block_number, 256), 256)), block_hash)
+    not_last_256block:
+
+    // Use storage fields 512..767 to store the hashes of the last 256
+    // blocks with block.number % 65536 == 0
+    jumpi(not_last_65536block, mod(prev_block_number, 65536))
+    sstore(add(512, mod(div(prev_block_number, 65536), 256)), block_hash)
+    not_last_65536block:
+  }
+
+  default {
+    // Sender is a regular account - Getting a block
+    let block_number := calldataload(0)
+    let block_offset := div(cur_block_number, block_number)
+
+    jumpi(less_than_cur, lt(block_number, cur_block_number))
+    // Block in the future
+    return(0, 0)
+
+    less_than_cur:
+    jumpi(greater_than_256, gt(block_offset, 256))
+    // The last 256 blocks
+    mstore(0, sload(mod(block_number, 256)))
+    return(0, 32)
+
+    greater_than_256:
+    jumpi(greater_than_65536, or(mod(block_number, 256), gt(block_offset, 655536)))
+    // Within the last 255..65536 blocks
+    mstore(0, sload(add(256, mod(div(block_number, 256), 256))))
+    return(0, 32)
+  
+    greater_than_65536:
+    jumpi(greater_than_16777216, or(mod(block_number, 65536), gt(block_offset, 16777216)))
+    // Within the last 65536..16777216 blocks
+    mstore(0, sload(add(512, mod(div(block_number, 65536), 256))))
+    return(0, 32)
+  
+    greater_than_16777216:
+    return(0, 0)
+  }
+}
