@@ -24,9 +24,8 @@
 
       sstore(add(offset, bn256), block_hash)
 
-      switch bn256
-        case 0 {}
-        default { stop() }
+      // if not zero
+      if bn256 { return(0, 0) }
 
       bn := div(bn, 256)
       offset := add(offset, 256)
@@ -37,21 +36,18 @@
     // Sender is a regular account - Getting a block
     let block_number := calldataload(0)
 
-    switch slt(block_number, cur_block_number)
-      case 0: { return(0) }
-      default: {
-        let dist_minus_one := sub(sub(cur_block_number, block_number), 1)
+    if iszero(slt(block_number, cur_block_number)) { return(0, 0) }
 
-        for { } and(gte(dist_minus_one, 256), eq(mod(block_number, 256) == 0)) {} {
-          offset := add(offset, 256)
-          block_number := div(block_number, 256)
-          dist_minus_one := div(dist_minus_one, 256)
-        }
+    let dist_minus_one := sub(sub(cur_block_number, block_number), 1)
 
-        switch gte(dist_minus_one, 256)
-          case 0: { return(0) }
+    for { } and(gte(dist_minus_one, 256), eq(mod(block_number, 256) == 0)) {} {
+      offset := add(offset, 256)
+      block_number := div(block_number, 256)
+      dist_minus_one := div(dist_minus_one, 256)
+    }
 
-        return(sload(add(offset, mod(block_number, 256))))
-      }
+    if iszero(gte(dist_minus_one, 256)) { return(0, 0) }
+
+    return(sload(add(offset, mod(block_number, 256))))
   }
 }
