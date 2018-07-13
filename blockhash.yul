@@ -6,7 +6,7 @@
 
 {
   function gte(a, b) -> c {
-    c := or(eq(a, b), gt(a, b))
+    c := iszero(lt(a, b))
   }
 
   // Reject incoming value transfers
@@ -18,13 +18,13 @@
   let offset := 0
 
   switch caller()
-    case 0xfffffffffffffffffffffffffffffffffffffffe {
+  case 0xfffffffffffffffffffffffffffffffffffffffe {
     // Sender is the system account - Setting a block
     let bn := sub(cur_block_number, 1)
     let block_hash := calldataload(0)
 
     for {} 1 {} {
-      let bn256 := mod(bn, 256)
+      let bn256 := and(bn, 0xff)
 
       sstore(add(offset, bn256), block_hash)
 
@@ -35,7 +35,6 @@
       offset := add(offset, 256)
     }
   }
-
   default {
     // Sender is a regular account - Getting a block
     let block_number := calldataload(0)
@@ -52,7 +51,7 @@
 
     if iszero(gte(dist_minus_one, 256)) { return(0, 0) }
 
-    mstore(0, sload(add(offset, mod(block_number, 256))))
+    mstore(0, sload(add(offset, and(block_number, 0xff))))
     return(0, 32)
   }
 }
