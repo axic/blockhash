@@ -1,5 +1,5 @@
 //
-// Blockhash contract implementation in Cali
+// Blockhash contract (EIP210) implementation in Yul
 //
 //
 //
