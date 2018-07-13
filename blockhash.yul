@@ -5,6 +5,10 @@
 //
 
 {
+  function gte(a, b) -> c {
+    c := or(eq(a, b), gt(a, b))
+  }
+
   // Reject incoming value transfers
 //  jumpi(unpaid, iszero(callvalue()))
 //  invalid
