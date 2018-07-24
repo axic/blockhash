@@ -37,7 +37,7 @@
     // Sender is a regular account - Getting a block
     let block_number := calldataload(0)
 
-    if iszero(slt(block_number, cur_block_number)) { return(0, 0) }
+    if gte(block_number, cur_block_number) { return(0, 0) }
 
     let dist_minus_one := sub(sub(cur_block_number, block_number), 1)
 
@@ -47,9 +47,9 @@
       dist_minus_one := div(dist_minus_one, 256)
     }
 
-    if iszero(gte(dist_minus_one, 256)) { return(0, 0) }
+    if gte(dist_minus_one, 256) { return(0, 0) }
 
-    mstore(0, sload(add(offset, and(block_number, 0xff))))
+    mstore(0, sload(add(offset, and(block_number, 256))))
     return(0, 32)
   }
 }
