@@ -10,9 +10,7 @@
   }
 
   // Reject incoming value transfers
-//  jumpi(unpaid, iszero(callvalue()))
-//  invalid
-//  unpaid:
+  if callvalue() { revert(0, 0) }
 
   let cur_block_number := number()
   let offset := 0
